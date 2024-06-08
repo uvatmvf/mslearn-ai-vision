@@ -1,13 +1,9 @@
 using System;
 using System.IO;
-using System.Net.Http;
-using System.Net.Http.Headers;
-using System.Text;
-using System.Text.Json;
 using System.Threading.Tasks;
-using System.Drawing;
 using Microsoft.Extensions.Configuration;
 using Azure;
+using Azure.AI.Vision.ImageAnalysis;
 
 // Import namespaces
 
@@ -34,7 +30,9 @@ namespace image_analysis
                 }
 
                 // Authenticate Azure AI Vision client
-
+                ImageAnalysisClient client = new ImageAnalysisClient(
+                                            new Uri(aiSvcEndpoint),
+                                            new AzureKeyCredential(aiSvcKey));
                 
                 // Analyze image
                 AnalyzeImage(imageFile, client);
@@ -58,10 +56,27 @@ namespace image_analysis
                                                      FileMode.Open);
 
             // Get result with specified features to be retrieved
-            
+            ImageAnalysisResult result = client.Analyze(
+                                            BinaryData.FromStream(stream),
+                                            VisualFeatures.Caption | 
+                                            VisualFeatures.DenseCaptions |
+                                            VisualFeatures.Objects |
+                                            VisualFeatures.Tags |
+                                            VisualFeatures.People);
             
             // Display analysis results
-            
+            if (result.Caption.Text != null)
+            {
+                Console.WriteLine(" Caption:");
+                Console.WriteLine($"   \"{result.Caption.Text}\", Confidence {result.Caption.Confidence:0.00}\n");
+            }
+
+            // Get image dense captions
+            Console.WriteLine(" Dense Captions:");
+            foreach (DenseCaption denseCaption in result.DenseCaptions.Values)
+            {
+                Console.WriteLine($"   Caption: '{denseCaption.Text}', Confidence: {denseCaption.Confidence:0.00}");
+            }
 
         }
         static async Task BackgroundForeground(string imageFile, string endpoint, string key)
