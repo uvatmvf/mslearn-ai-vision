@@ -1,6 +1,11 @@
 using System;
 using System.IO;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
+using System.Drawing;
 using Microsoft.Extensions.Configuration;
 using Azure;
 using Azure.AI.Vision.ImageAnalysis;
@@ -58,12 +63,12 @@ namespace image_analysis
             // Get result with specified features to be retrieved
             ImageAnalysisResult result = client.Analyze(
                                             BinaryData.FromStream(stream),
-                                            VisualFeatures.Caption | 
+                                            VisualFeatures.Caption |
                                             VisualFeatures.DenseCaptions |
                                             VisualFeatures.Objects |
                                             VisualFeatures.Tags |
                                             VisualFeatures.People);
-            
+
             // Display analysis results
             if (result.Caption.Text != null)
             {
@@ -71,23 +76,101 @@ namespace image_analysis
                 Console.WriteLine($"   \"{result.Caption.Text}\", Confidence {result.Caption.Confidence:0.00}\n");
             }
 
-            // Get image dense captions
-            Console.WriteLine(" Dense Captions:");
-            foreach (DenseCaption denseCaption in result.DenseCaptions.Values)
+            get_dense_captions(result);
+
+            get_tags(result);
+
+            get_objects(imageFile, stream, result);
+
+            get_people(imageFile, result);
+
+            static void get_people(string imageFile, ImageAnalysisResult result)
             {
-                Console.WriteLine($"   Caption: '{denseCaption.Text}', Confidence: {denseCaption.Confidence:0.00}");
-            }
-            
-            // get image tags
-            if (result.Tags.Values.Count > 0)
-            {
-                Console.WriteLine($"\n Tags:");
-                foreach (DetectedTag tag in result.Tags.Values)
+                // Get people in the image
+                if (result.People.Values.Count > 0)
                 {
-                    Console.WriteLine($"   '{tag.Name}', Confidence: {tag.Confidence:F2}");
+                    Console.WriteLine($" People:");
+
+                    // Prepare image for drawing
+                    System.Drawing.Image image = System.Drawing.Image.FromFile(imageFile);
+                    Graphics graphics = Graphics.FromImage(image);
+                    Pen pen = new Pen(Color.Cyan, 3);
+                    Font font = new Font("Arial", 16);
+                    SolidBrush brush = new SolidBrush(Color.WhiteSmoke);
+
+                    foreach (DetectedPerson person in result.People.Values)
+                    {
+                        // Draw object bounding box
+                        var r = person.BoundingBox;
+                        Rectangle rect = new Rectangle(r.X, r.Y, r.Width, r.Height);
+                        graphics.DrawRectangle(pen, rect);
+
+                        // Return the confidence of the person detected
+                        //Console.WriteLine($"   Bounding box {person.BoundingBox.ToString()}, Confidence: {person.Confidence:F2}");
+                    }
+
+                    // Save annotated image
+                    String output_file = "persons.jpg";
+                    image.Save(output_file);
+                    Console.WriteLine("  Results saved in " + output_file + "\n");
                 }
             }
 
+            static void get_objects(string imageFile, FileStream stream, ImageAnalysisResult result)
+            {
+                // Get objects in the image
+                if (result.Objects.Values.Count > 0)
+                {
+                    Console.WriteLine(" Objects:");
+
+                    // Prepare image for drawing
+                    stream.Close();
+                    System.Drawing.Image image = System.Drawing.Image.FromFile(imageFile);
+                    Graphics graphics = Graphics.FromImage(image);
+                    Pen pen = new Pen(Color.Cyan, 3);
+                    Font font = new Font("Arial", 16);
+                    SolidBrush brush = new SolidBrush(Color.WhiteSmoke);
+
+                    foreach (DetectedObject detectedObject in result.Objects.Values)
+                    {
+                        Console.WriteLine($"   \"{detectedObject.Tags[0].Name}\"");
+
+                        // Draw object bounding box
+                        var r = detectedObject.BoundingBox;
+                        Rectangle rect = new Rectangle(r.X, r.Y, r.Width, r.Height);
+                        graphics.DrawRectangle(pen, rect);
+                        graphics.DrawString(detectedObject.Tags[0].Name, font, brush, (float)r.X, (float)r.Y);
+                    }
+
+                    // Save annotated image
+                    String output_file = "objects.jpg";
+                    image.Save(output_file);
+                    Console.WriteLine("  Results saved in " + output_file + "\n");
+                }
+            }
+
+            static void get_tags(ImageAnalysisResult result)
+            {
+                // get image tags
+                if (result.Tags.Values.Count > 0)
+                {
+                    Console.WriteLine($"\n Tags:");
+                    foreach (DetectedTag tag in result.Tags.Values)
+                    {
+                        Console.WriteLine($"   '{tag.Name}', Confidence: {tag.Confidence:F2}");
+                    }
+                }
+            }
+
+            static void get_dense_captions(ImageAnalysisResult result)
+            {
+                // Get image dense captions
+                Console.WriteLine(" Dense Captions:");
+                foreach (DenseCaption denseCaption in result.DenseCaptions.Values)
+                {
+                    Console.WriteLine($"   Caption: '{denseCaption.Text}', Confidence: {denseCaption.Confidence:0.00}");
+                }
+            }
         }
         static async Task BackgroundForeground(string imageFile, string endpoint, string key)
         {
