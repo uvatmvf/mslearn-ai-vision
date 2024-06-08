@@ -77,6 +77,16 @@ namespace image_analysis
             {
                 Console.WriteLine($"   Caption: '{denseCaption.Text}', Confidence: {denseCaption.Confidence:0.00}");
             }
+            
+            // get image tags
+            if (result.Tags.Values.Count > 0)
+            {
+                Console.WriteLine($"\n Tags:");
+                foreach (DetectedTag tag in result.Tags.Values)
+                {
+                    Console.WriteLine($"   '{tag.Name}', Confidence: {tag.Confidence:F2}");
+                }
+            }
 
         }
         static async Task BackgroundForeground(string imageFile, string endpoint, string key)
