@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Azure;
 using Azure.AI.Vision.Common;
 using Azure.AI.Vision.ImageAnalysis;
+ // Import namespaces
 
 namespace detect_people
 {
